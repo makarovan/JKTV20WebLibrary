@@ -58,6 +58,7 @@ public class ManagerServlet extends HttpServlet {
             request.getRequestDispatcher("/showLogin.jsp").forward(request, response);
             return;
         }
+        request.setAttribute("auth", "true");
         if(!userRolesFacade.isRole("MANAGER", authUser)){
             request.setAttribute("info", "У вас нет прав. Войдите с правами менеджера");
             request.getRequestDispatcher("/showLogin.jsp").forward(request, response);

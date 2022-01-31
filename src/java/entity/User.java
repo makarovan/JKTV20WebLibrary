@@ -24,10 +24,20 @@ public class User implements Serializable {
     private Long id;
     private String login;
     private String password;
+    private String salt;
     private Reader reader;
+    
     
     public User(){
         
+    }
+
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 
     public Long getId() {

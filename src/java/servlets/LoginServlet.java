@@ -25,6 +25,7 @@ import session.ReaderFacade;
 import session.RoleFacade;
 import session.UserFacade;
 import session.UserRolesFacade;
+import tools.EncryptPassword;
 
 /**
  *
@@ -37,6 +38,7 @@ public class LoginServlet extends HttpServlet {
     @EJB private RoleFacade roleFacade;
     @EJB private UserRolesFacade userRolesFacade;
     @EJB private BookFacade bookFacade;
+    private EncryptPassword encryptPassword;
     
     @Override
     public void init() throws ServletException {
@@ -47,14 +49,19 @@ public class LoginServlet extends HttpServlet {
         if(users.isEmpty()){//creating admin
             User user = new User();
             user.setLogin("admin");
-            user.setPassword("12345");
+            encryptPassword = new EncryptPassword();
+            String salt = encryptPassword.createSalt();
+            user.setSalt(salt);
+            String hashPassword = encryptPassword.createHash("12345", salt);
+            user.setPassword(hashPassword);
             Reader reader = new Reader();
-            reader.setFirstname("name");
-            reader.setLastname("lastname");
+            reader.setFirstname("admin");
+            reader.setLastname("admin");
             reader.setPhone("1234567");
             readerFacade.create(reader);
             user.setReader(reader);
             userFacade.create(user);
+            //ОШИБКА роли не добавляются
             Role role = new Role();
             UserRoles userRoles = new UserRoles();
             role.setRoleName("ADMINISTRATOR");//ROLES SHOULD BE WRITTEN IN CAPS
@@ -100,7 +107,6 @@ public class LoginServlet extends HttpServlet {
         String path = request.getServletPath();
         switch (path) {
            case "/index.jsp": 
-           case "/index":
                 List<Book> books = bookFacade.findAll();
                 request.setAttribute("books", books);
                 request.getRequestDispatcher("/listBooks.jsp").forward(request, response);
@@ -116,11 +122,20 @@ public class LoginServlet extends HttpServlet {
                 if(authUser == null){
                     request.setAttribute("info", "Нет такого пользователя или неправильный пароль");
                     request.getRequestDispatcher("/showLogin").forward(request, response);
+                    break;
                 }
                 //авторизация
-                if(!password.equals(authUser.getPassword())){
+                encryptPassword = new EncryptPassword();
+                String hashPassword = encryptPassword.createHash(password, authUser.getSalt());
+                if(hashPassword==null){
                     request.setAttribute("info", "Нет такого пользователя или неправильный пароль");
                     request.getRequestDispatcher("/showLogin").forward(request, response);
+                    break;
+                }
+                if(!hashPassword.equals(authUser.getPassword())){
+                    request.setAttribute("info", "Нет такого пользователя или неправильный пароль");
+                    request.getRequestDispatcher("/showLogin").forward(request, response);
+                    break;
                 }
                 HttpSession session = request.getSession();
                 session.setAttribute("authUser", authUser);
@@ -129,7 +144,11 @@ public class LoginServlet extends HttpServlet {
                 request.getRequestDispatcher("/index.jsp").forward(request, response);
                 break;
             case "/logout":
-                
+                session = request.getSession(false);
+                if(session !=null){
+                    session.invalidate();
+                    request.setAttribute("info", "Вы успешно вышли");
+                }
                 request.getRequestDispatcher("/index.jsp").forward(request, response);
                 break;
         }
